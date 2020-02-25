@@ -190,193 +190,114 @@ def play_game(env, TrainNet, TargetNet, epsilon, copy_step):
 player1 = DQN(7*6, 7, 2, gamma = 0.99, max_experiences=10000, min_experiences = 100, batch_size = 32)
 player2 = DQN(7*6, 7, 2, gamma = 0.99, max_experiences=10000, min_experiences = 100, batch_size = 32)
 TargetNet = DQN(7*6, 7, 2, gamma = 0.99, max_experiences=10000, min_experiences = 100, batch_size = 32)
-#
-# game.print_board()
 
-# player = 1
-# # env = ConnectX()
-# while(1):
-#     game.move(player)
-#     game.print_board()
-#     if game.check_win(player):
-#         break
-#
-#     player = player * -1
+player1.load_weights('weights.hdf5')
+player1.load_weights('weights.hdf5')
 
+TRAINING_STEPS = 1
+MIN_EPSILON = 0.1
+DECAY = 0.9999
+EPSILON = 0.99
 
-rewards = 0
-iter = 0
-done = False
-
-min_epsilon = 0.1
-decay = 0.99999
 player = 1
 epsilon = 0.99
 action = None
-maxiter = 10
-player1.load_weights('weights.hdf5')
-player2.load_weights('weights.hdf5')
-for i in range(maxiter):
-    print(i, '/', maxiter, '  ', '{:.2f}%'.format(100*i/maxiter), end ='\r')
+maxiter = 1000
+
+
+player = 1
+Experience = {}
+
+
+
+for i in range(TRAINING_STEPS):
     game = connect4(7, 6)
-    count = 0
-
+    print(i, '/', TRAINING_STEPS, '  ', '{:.2f}%'.format(100 * i / TRAINING_STEPS), end='\r')
     while(1):
-        rewardp1 = 0
-        rewardp2 = 0
-        reward = 0
-        epsilon = max(min_epsilon, epsilon * decay)
-        prev_observations = game.board
-        t_count = 0
-        while(1):
-            t_count = t_count+1
+        player1_reward = -0.01
+        player2_reward = -0.01
+        done = False
+        EPSILON = max(MIN_EPSILON, EPSILON * DECAY)
 
+        ''' GET A NEW ACTION '''
+        count = 0
+        action = -1
+        while game.check_valid(action) is not True:
+            count = count + 1
             if player == 1:
-                action = player1.get_action(np.reshape(game.board, -1),epsilon)+1
+                p1_prev_observations = game.board
+                action = player1.get_action(np.reshape(game.board, -1),epsilon)
+                game.change_player()
+                p2_prev_observations = game.board
+                game.change_player()
             elif player == -1:
-                action = player2.get_action(np.reshape(game.board, -1),epsilon)+1
-
-
-            if t_count > 10:
+                p1_prev_observations = game.board
+                game.change_player()
+                p2_prev_observations = game.board
+                action = player2.get_action(np.reshape(game.board, -1),epsilon)
+                game.change_player()
+            if count>10:
                 action = np.random.randint(7)
-            if game.check_valid(action):
-                game.place(action, player)
-                break
+
+        game.place(action, player)
+
+        ''' CHECK IF GAME IS OVER '''
+        if game.check_win(player):
+            if player == 1:
+                player1_reward = 1
+                player2_reward = -1
             else:
-                reward -= 0.1
+                player1_reward = -1
+                player2_reward = 1
+            done = True
+
+        if game.check_draw():
+            player1_reward = -0.1
+            player1_reward = -0.1
+            done = True
+
+        ''' GIVE AGENTS EXPERIENCE '''
+        player1_experience = {'s': p1_prev_observations, 'a': action, 'r': player1_reward, 's2': game.board, 'done': done}
+        player2_experience = {'s': p2_prev_observations, 'a': action, 'r': player2_reward, 's2': game.board, 'done': done}
+
+        player1.add_experience(player1_experience)
+        player2.add_experience(player2_experience)
+
+        player = player * -1
 
         # game.print_board()
-
-        if player == 1:
-            rewardp1 = reward
-        else:
-            rewardp2 = reward
-        done = False
-        if game.check_win(player):
-            done = True
-            if player == 1:
-                rewardp1 = 1
-                rewardp2 = -1
-
-            elif player == -1:
-                rewardp2 = 1
-                rewardp1 = -1
-            break
-        if game.check_draw():
-            rewardp1 = -0.1
-            rewardp2 = -0.1
-            done = True
+        if done ==True:
             break
 
-        expp1 = {'s': prev_observations, 'a': action, 'r': rewardp1, 's2': game.board, 'done': done}
-        expp2 = {'s': prev_observations, 'a': action, 'r': rewardp2, 's2': game.board, 'done': done}
-
-        player1.add_experience(expp1)
-        player2.add_experience(expp2)
-        player = player * -1
-        count = count + 1
-    # Train the training model by using experiences in buffer and the target model
+    ''' TRAIN THE AGENTS '''
     player1.train(TargetNet)
     player2.train(TargetNet)
-    iter += 1
 
     # Update the weights of the target model when reaching enough "copy step"
     TargetNet.copy_weights(player1)
 
+
 player1.save_weights('weights.hdf5')
+
+
+done = False
+player = 1
 game = connect4(7, 6)
-count = 0
-
-
-
-
-rewardp1 = 0
-reward = 0
-epsilon = max(min_epsilon, epsilon * decay)
-prev_observations = game.board
-t_count = 0
-while(1):
-    t_count = t_count+1
-    game.print_board()
-    if player == -1:
-        action = player1.get_action(np.reshape(game.board, -1),epsilon)+1
-
-        if t_count > 10:
+while not done:
+    action = -10
+    while game.check_valid(action) is not True:
+        count = count + 1
+        if player == 1:
+            p1_prev_observations = game.board
+            action = player1.get_action(np.reshape(game.board, -1), epsilon)
+        if count > 10:
             action = np.random.randint(7)
-        if game.check_valid(action):
-            game.place(action, player)
-            break
-        else:
-            reward -= 0.1
 
-            # game.print_board()
+        if player == -1:
+            print('Player O to move, pick a row')
+            action = int(input())
+    game.place(action, player)
 
-            if player == 1:
-                rewardp1 = reward
-            done = False
-            if game.check_win(player):
-                done = True
-                if player == 1:
-                    rewardp1 = 1
-                elif player == -1:
-                    rewardp1 = -1
-                break
-            if game.check_draw():
-                rewardp1 = -0.1
-                done = True
-                break
+    game.print_board()
+    player = player *-1
 
-            expp1 = {'s': prev_observations, 'a': action, 'r': rewardp1, 's2': game.board, 'done': done}
-
-            player1.add_experience(expp1)
-
-    else:
-        game.move(player)
-
-    player = player * -1
-    count = count + 1
-
-    
-# Train the training model by using experiences in buffer and the target model
-player1.train(TargetNet)
-player2.train(TargetNet)
-iter += 1
-
-# Update the weights of the target model when reaching enough "copy step"
-TargetNet.copy_weights(player1)
-
-# while not done:
-#     # Using epsilon-greedy to get an action
-#
-#     action = TrainNet.get_action(observations, epsilon)
-#
-#     # Caching the information of current state
-#     prev_observations = observations
-#
-#     # Take action
-#     observations, reward, done, _ = env.step(action)
-#
-#     # Apply new rules
-#     if done:
-#         if reward == 1: # Won
-#             reward = 20
-#         elif reward == 0: # Lost
-#             reward = -20
-#         else: # Draw
-#             reward = 10
-#     else:
-#         reward = -0.05 # Try to prevent the agent from taking a long move
-#
-#     rewards += reward
-#
-#     # Adding experience into buffer
-#     exp = {'s': prev_observations, 'a': action, 'r': reward, 's2': observations, 'done': done}
-#     TrainNet.add_experience(exp)
-#
-#     # Train the training model by using experiences in buffer and the target model
-#     TrainNet.train(TargetNet)
-#     iter += 1
-#     if iter % copy_step == 0:
-#         # Update the weights of the target model when reaching enough "copy step"
-#         TargetNet.copy_weights(TrainNet)
-# return rewards
