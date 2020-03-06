@@ -1,7 +1,7 @@
 import numpy as np
-
+import os
 class Logger:
-    def __init__(self):
+    def __init__(self, load = False):
         self.max_len = 10000
         self.board_before = []
         self.board_after = []
@@ -11,6 +11,9 @@ class Logger:
         self.draw = []
         self.x_train = np.zeros((1,42))
         self.y_train = np.zeros((1,7))
+
+        if load:
+            self.load()
 
     def log(self, move, player, win, board_before, board_after, draw):
         self.board_before.append(board_before)
@@ -29,6 +32,32 @@ class Logger:
 
     def one_hot(self, a, num_classes=7):
         return np.squeeze(np.eye(num_classes)[a.reshape(-1)])
+
+    def save(self):
+        cwd = os.getcwd()
+        save_dir = cwd+'/replay_buffer'
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        os.chdir(save_dir)
+        np.save('observations.npy', self.x_train)
+        np.save('rewards.npy', self.y_train)
+        os.chdir(cwd)
+
+    def load(self):
+        cwd = os.getcwd()
+        save_dir = cwd+'/replay_buffer'
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        os.chdir(save_dir)
+        try:
+            self.x_train = np.load('observations.npy')
+            self.y_train = np.load('rewards.npy')
+        except:
+            print('no replay buffer found')
+        os.chdir(cwd)
+
 
     def convert(self):
         if self.win[-1]:
