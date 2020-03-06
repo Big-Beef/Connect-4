@@ -35,7 +35,7 @@ class Logger:
 
     def save(self):
         cwd = os.getcwd()
-        save_dir = cwd+'/replay_buffer'
+        save_dir = cwd+'/save'
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
 

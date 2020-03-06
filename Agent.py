@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import copy
+import os
 
 def loss(y_pred, y_true):
     loss = tf.math.abs(y_true - y_pred)
@@ -25,13 +26,13 @@ class Agent:
 
     def load(self):
         try:
-            self.model.load_weights('agent.hdf5')
+            self.model.load_weights(os.getcwd() + '/save' + 'agent.hdf5')
         except:
             print('Unable to load model')
             pass
 
     def save(self):
-        self.model.save_weights('agent.hdf5')
+        self.model.save_weights(os.getcwd() + '/save' + '/agent.hdf5')
 
     def get_action(self, game, player, epsilon):
         if epsilon > np.random.rand():
