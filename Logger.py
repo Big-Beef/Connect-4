@@ -12,6 +12,11 @@ class Logger:
         self.x_train = np.zeros((1,42))
         self.y_train = np.zeros((1,7))
 
+        self.cwd = os.getcwd()
+        self.save_dir = self.cwd+'/save'
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+
         if load:
             self.load()
 
@@ -34,29 +39,19 @@ class Logger:
         return np.squeeze(np.eye(num_classes)[a.reshape(-1)])
 
     def save(self):
-        cwd = os.getcwd()
-        save_dir = cwd+'/save'
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-
-        os.chdir(save_dir)
+        os.chdir(self.save_dir)
         np.save('observations.npy', self.x_train)
         np.save('rewards.npy', self.y_train)
-        os.chdir(cwd)
+        os.chdir(self.cwd)
 
     def load(self):
-        cwd = os.getcwd()
-        save_dir = cwd+'/replay_buffer'
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-
-        os.chdir(save_dir)
+        os.chdir(self.save_dir)
         try:
             self.x_train = np.load('observations.npy')
             self.y_train = np.load('rewards.npy')
         except:
             print('no replay buffer found')
-        os.chdir(cwd)
+        os.chdir(self.cwd)
 
 
     def convert(self):
